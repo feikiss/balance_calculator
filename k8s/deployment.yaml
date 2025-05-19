@@ -1,0 +1,40 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hsbchomework
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: hsbchomework
+  template:
+    metadata:
+      labels:
+        app: hsbchomework
+    spec:
+      containers:
+      - name: hsbchomework
+        image: hsbchomework:latest
+        ports:
+        - containerPort: 8080
+        env:
+        - name: K8S_DATASOURCE_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: hsbchomework-secret
+              key: datasource-username
+        - name: K8S_DATASOURCE_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: hsbchomework-secret
+              key: datasource-password
+        - name: DB_HOST
+          value: "mysql-service"
+        - name: DB_PORT
+          value: "3306"
+        - name: DB_NAME
+          value: "balance_calculator"
+        - name: REDIS_HOST
+          value: "redis-service"
+        - name: REDIS_PORT
+          value: "6379" 

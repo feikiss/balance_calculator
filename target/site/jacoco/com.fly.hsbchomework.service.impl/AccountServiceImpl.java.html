@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>AccountServiceImpl.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">balance-calculator</a> &gt; <a href="index.source.html" class="el_package">com.fly.hsbchomework.service.impl</a> &gt; <span class="el_source">AccountServiceImpl.java</span></div><h1>AccountServiceImpl.java</h1><pre class="source lang-java linenums">package com.fly.hsbchomework.service.impl;
+
+import com.fly.hsbchomework.model.Account;
+import com.fly.hsbchomework.model.Currency;
+import com.fly.hsbchomework.repository.AccountRepository;
+import com.fly.hsbchomework.service.AccountService;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import javax.persistence.EntityNotFoundException;
+import java.math.BigDecimal;
+import java.util.List;
+import java.util.Optional;
+
+<span class="fc" id="L19">@Slf4j</span>
+@Service
+<span class="fc" id="L21">@RequiredArgsConstructor</span>
+public class AccountServiceImpl implements AccountService {
+
+    private final AccountRepository accountRepository;
+
+    @Override
+    @Transactional
+    public Account createAccount(String accountNumber, BigDecimal initialBalance, Currency currency) {
+<span class="fc" id="L29">        log.info(&quot;Creating new account: accountNumber={}, initialBalance={}, currency={}&quot;,</span>
+                accountNumber, initialBalance, currency);
+
+<span class="pc bpc" id="L32" title="1 of 2 branches missed.">        if (accountRepository.findByAccountNumber(accountNumber).isPresent()) {</span>
+<span class="nc" id="L33">            log.error(&quot;Account already exists: accountNumber={}&quot;, accountNumber);</span>
+<span class="nc" id="L34">            throw new IllegalStateException(&quot;Account already exists&quot;);</span>
+        }
+
+<span class="fc" id="L37">        Account account = new Account();</span>
+<span class="fc" id="L38">        account.setAccountNumber(accountNumber);</span>
+<span class="fc" id="L39">        account.setBalance(initialBalance);</span>
+<span class="fc" id="L40">        account.setCurrency(currency);</span>
+
+<span class="fc" id="L42">        Account saved = accountRepository.save(account);</span>
+<span class="fc" id="L43">        log.info(&quot;Account created successfully: accountNumber={}, id={}&quot;, </span>
+<span class="fc" id="L44">                saved.getAccountNumber(), saved.getId());</span>
+<span class="fc" id="L45">        return saved;</span>
+    }
+
+    @Override
+    @Cacheable(value = &quot;accounts&quot;, key = &quot;#accountNumber&quot;)
+    public Optional&lt;Account&gt; getAccount(String accountNumber) {
+<span class="fc" id="L51">        return accountRepository.findByAccountNumber(accountNumber);</span>
+    }
+
+    @Override
+    public List&lt;Account&gt; getAllAccounts() {
+<span class="nc" id="L56">        return null;</span>
+    }
+
+    @Override
+    @Transactional
+    @CacheEvict(value = &quot;accounts&quot;, key = &quot;#accountNumber&quot;)
+    public Account updateBalance(String accountNumber, BigDecimal amount) {
+<span class="fc" id="L63">        log.info(&quot;Updating account balance: accountNumber={}, amount={}&quot;, accountNumber, amount);</span>
+
+<span class="fc" id="L65">        Account account = accountRepository.findByAccountNumberWithLock(accountNumber)</span>
+<span class="fc" id="L66">                .orElseThrow(() -&gt; {</span>
+<span class="nc" id="L67">                    log.error(&quot;Account not found: accountNumber={}&quot;, accountNumber);</span>
+<span class="nc" id="L68">                    return new RuntimeException(&quot;Account not found: &quot; + accountNumber);</span>
+                });
+        
+<span class="fc" id="L71">        BigDecimal newBalance = account.getBalance().add(amount);</span>
+<span class="pc bpc" id="L72" title="1 of 2 branches missed.">        if (newBalance.compareTo(BigDecimal.ZERO) &lt; 0) {</span>
+<span class="nc" id="L73">            log.error(&quot;Insufficient funds for account: accountNumber={}, currentBalance={}, requestedAmount={}&quot;, </span>
+<span class="nc" id="L74">                    accountNumber, account.getBalance(), amount);</span>
+<span class="nc" id="L75">            throw new RuntimeException(&quot;Insufficient funds for account: &quot; + accountNumber);</span>
+        }
+
+<span class="fc" id="L78">        account.setBalance(newBalance);</span>
+<span class="fc" id="L79">        Account updated = accountRepository.save(account);</span>
+<span class="fc" id="L80">        log.info(&quot;Account balance updated successfully: accountNumber={}, newBalance={}&quot;, </span>
+<span class="fc" id="L81">                updated.getAccountNumber(), updated.getBalance());</span>
+<span class="fc" id="L82">        return updated;</span>
+    }
+
+    @Override
+    @Transactional
+    public void deleteAccount(String accountNumber) {
+<span class="nc" id="L88">        log.info(&quot;Deleting account: accountNumber={}&quot;, accountNumber);</span>
+
+<span class="nc" id="L90">        Account account = accountRepository.findByAccountNumber(accountNumber)</span>
+<span class="nc" id="L91">                .orElseThrow(() -&gt; {</span>
+<span class="nc" id="L92">                    log.error(&quot;Account not found: accountNumber={}&quot;, accountNumber);</span>
+<span class="nc" id="L93">                    return new EntityNotFoundException(&quot;Account not found&quot;);</span>
+                });
+
+        // 检查账户余额
+<span class="nc bnc" id="L97" title="All 2 branches missed.">        if (account.getBalance().compareTo(BigDecimal.ZERO) &gt; 0) {</span>
+<span class="nc" id="L98">            log.error(&quot;Cannot delete account with non-zero balance: accountNumber={}, balance={}&quot;, </span>
+<span class="nc" id="L99">                    accountNumber, account.getBalance());</span>
+<span class="nc" id="L100">            throw new IllegalStateException(&quot;Cannot delete account with non-zero balance&quot;);</span>
+        }
+
+<span class="nc" id="L103">        accountRepository.delete(account);</span>
+<span class="nc" id="L104">        log.info(&quot;Account deleted successfully: accountNumber={}&quot;, accountNumber);</span>
+<span class="nc" id="L105">    }</span>
+} 
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

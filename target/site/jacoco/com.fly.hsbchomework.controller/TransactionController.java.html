@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>TransactionController.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">balance-calculator</a> &gt; <a href="index.source.html" class="el_package">com.fly.hsbchomework.controller</a> &gt; <span class="el_source">TransactionController.java</span></div><h1>TransactionController.java</h1><pre class="source lang-java linenums">package com.fly.hsbchomework.controller;
+
+import com.fly.hsbchomework.model.Transaction;
+import com.fly.hsbchomework.model.Currency;
+import com.fly.hsbchomework.service.TransactionService;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+import java.math.BigDecimal;
+import java.util.List;
+import java.util.Optional;
+
+<span class="fc" id="L17">@Slf4j</span>
+@RestController
+@RequestMapping(&quot;/api/transactions&quot;)
+<span class="fc" id="L20">@RequiredArgsConstructor</span>
+public class TransactionController {
+
+    private final TransactionService transactionService;
+
+    @PostMapping
+    public ResponseEntity&lt;Transaction&gt; createTransaction(@RequestParam String sourceAccountNumber,
+                                                        @RequestParam String targetAccountNumber,
+                                                        @RequestParam BigDecimal amount,
+                                                        @RequestParam Currency currency) {
+<span class="fc" id="L30">        log.info(&quot;Received request to create transaction: sourceAccount={}, targetAccount={}, amount={}, currency={}&quot;,</span>
+                sourceAccountNumber, targetAccountNumber, amount, currency);
+        
+<span class="fc" id="L33">        Transaction created = transactionService.createTransaction(</span>
+                sourceAccountNumber, targetAccountNumber, amount, currency
+        );
+        
+<span class="fc" id="L37">        log.info(&quot;Transaction created successfully: transactionId={}&quot;, created.getTransactionId());</span>
+<span class="fc" id="L38">        return ResponseEntity.ok(created);</span>
+    }
+
+    @PostMapping(&quot;/{transactionId}/process&quot;)
+    public ResponseEntity&lt;Transaction&gt; processTransaction(@PathVariable String transactionId) {
+<span class="fc" id="L43">        log.info(&quot;Received request to process transaction: transactionId={}&quot;, transactionId);</span>
+        
+<span class="fc" id="L45">        Transaction processed = transactionService.processTransaction(transactionId);</span>
+        
+<span class="fc" id="L47">        log.info(&quot;Transaction processed successfully: transactionId={}, status={}&quot;, </span>
+<span class="fc" id="L48">                processed.getTransactionId(), processed.getStatus());</span>
+<span class="fc" id="L49">        return ResponseEntity.ok(processed);</span>
+    }
+
+    @GetMapping(&quot;/{transactionId}&quot;)
+    public ResponseEntity&lt;Transaction&gt; getTransaction(@PathVariable String transactionId) {
+<span class="fc" id="L54">        log.info(&quot;Received request to get transaction: transactionId={}&quot;, transactionId);</span>
+        
+<span class="fc" id="L56">        Optional&lt;Transaction&gt; transaction = transactionService.getTransaction(transactionId);</span>
+        
+<span class="fc bfc" id="L58" title="All 2 branches covered.">        if (transaction.isPresent()) {</span>
+<span class="fc" id="L59">            log.info(&quot;Transaction retrieved successfully: transactionId={}, status={}&quot;, </span>
+<span class="fc" id="L60">                    transaction.get().getTransactionId(), transaction.get().getStatus());</span>
+<span class="fc" id="L61">            return ResponseEntity.ok(transaction.get());</span>
+        } else {
+<span class="fc" id="L63">            log.info(&quot;Transaction not found: transactionId={}&quot;, transactionId);</span>
+<span class="fc" id="L64">            return ResponseEntity.notFound().build();</span>
+        }
+    }
+
+    @PostMapping(&quot;/{transactionId}/retry&quot;)
+    public ResponseEntity&lt;Transaction&gt; retryFailedTransaction(@PathVariable String transactionId) {
+<span class="fc" id="L70">        return ResponseEntity.ok(transactionService.retryFailedTransaction(transactionId));</span>
+    }
+
+    @GetMapping
+    public ResponseEntity&lt;List&lt;Transaction&gt;&gt; getAllTransactions() {
+<span class="nc" id="L75">        log.info(&quot;Received request to get all transactions&quot;);</span>
+        
+<span class="nc" id="L77">        List&lt;Transaction&gt; transactions = transactionService.getAllTransactions();</span>
+        
+<span class="nc" id="L79">        log.info(&quot;Retrieved {} transactions successfully&quot;, transactions.size());</span>
+<span class="nc" id="L80">        return ResponseEntity.ok(transactions);</span>
+    }
+
+    @GetMapping(&quot;/page&quot;)
+    public ResponseEntity&lt;Page&lt;Transaction&gt;&gt; getTransactionsByPage(
+            @RequestParam(defaultValue = &quot;0&quot;) int page,
+            @RequestParam(defaultValue = &quot;10&quot;) int size,
+            @RequestParam(defaultValue = &quot;id&quot;) String sortBy,
+            @RequestParam(defaultValue = &quot;desc&quot;) String direction) {
+<span class="fc" id="L89">        log.info(&quot;Received request to get transactions by page: page={}, size={}, sortBy={}, direction={}&quot;,</span>
+<span class="fc" id="L90">                page, size, sortBy, direction);</span>
+        
+<span class="fc" id="L92">        Sort.Direction sortDirection = Sort.Direction.fromString(direction.toUpperCase());</span>
+<span class="fc" id="L93">        PageRequest pageRequest = PageRequest.of(page, size, Sort.by(sortDirection, sortBy));</span>
+        
+<span class="fc" id="L95">        Page&lt;Transaction&gt; transactions = transactionService.getTransactionsByPage(pageRequest);</span>
+<span class="fc" id="L96">        log.info(&quot;Retrieved {} transactions for page {}&quot;, transactions.getContent().size(), page);</span>
+        
+<span class="fc" id="L98">        return ResponseEntity.ok(transactions);</span>
+    }
+
+    @GetMapping(&quot;/account/{accountNumber}/page&quot;)
+    public ResponseEntity&lt;Page&lt;Transaction&gt;&gt; getTransactionsByAccountNumber(
+            @PathVariable String accountNumber,
+            @RequestParam(defaultValue = &quot;0&quot;) int page,
+            @RequestParam(defaultValue = &quot;10&quot;) int size,
+            @RequestParam(defaultValue = &quot;id&quot;) String sortBy,
+            @RequestParam(defaultValue = &quot;desc&quot;) String direction) {
+<span class="fc" id="L108">        log.info(&quot;Received request to get transactions for account {} by page: page={}, size={}, sortBy={}, direction={}&quot;,</span>
+<span class="fc" id="L109">                accountNumber, page, size, sortBy, direction);</span>
+        
+<span class="fc" id="L111">        Sort.Direction sortDirection = Sort.Direction.fromString(direction.toUpperCase());</span>
+<span class="fc" id="L112">        PageRequest pageRequest = PageRequest.of(page, size, Sort.by(sortDirection, sortBy));</span>
+        
+<span class="fc" id="L114">        Page&lt;Transaction&gt; transactions = transactionService.getTransactionsByAccountNumber(accountNumber, pageRequest);</span>
+<span class="fc" id="L115">        log.info(&quot;Retrieved {} transactions for account {} on page {}&quot;, </span>
+<span class="fc" id="L116">                transactions.getContent().size(), accountNumber, page);</span>
+        
+<span class="fc" id="L118">        return ResponseEntity.ok(transactions);</span>
+    }
+} 
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

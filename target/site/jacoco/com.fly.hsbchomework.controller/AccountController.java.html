@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>AccountController.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">balance-calculator</a> &gt; <a href="index.source.html" class="el_package">com.fly.hsbchomework.controller</a> &gt; <span class="el_source">AccountController.java</span></div><h1>AccountController.java</h1><pre class="source lang-java linenums">package com.fly.hsbchomework.controller;
+
+import com.fly.hsbchomework.model.Account;
+import com.fly.hsbchomework.model.Currency;
+import com.fly.hsbchomework.service.AccountService;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import javax.validation.Valid;
+import java.math.BigDecimal;
+import java.util.List;
+import java.util.Optional;
+
+<span class="fc" id="L16">@Slf4j</span>
+@RestController
+@RequestMapping(&quot;/api/accounts&quot;)
+<span class="fc" id="L19">@RequiredArgsConstructor</span>
+public class AccountController {
+
+    private final AccountService accountService;
+
+    @PostMapping
+    public ResponseEntity&lt;Account&gt; createAccount(
+            @RequestParam String accountNumber,
+            @RequestParam BigDecimal initialBalance,
+            @RequestParam Currency currency) {
+<span class="fc" id="L29">        log.info(&quot;Received request to create account: accountNumber={}, initialBalance={}, currency={}&quot;,</span>
+                accountNumber, initialBalance, currency);
+        
+<span class="fc" id="L32">        Account created = accountService.createAccount(accountNumber, initialBalance, currency);</span>
+        
+<span class="fc" id="L34">        log.info(&quot;Account created successfully: accountNumber={}, id={}&quot;, </span>
+<span class="fc" id="L35">                created.getAccountNumber(), created.getId());</span>
+<span class="fc" id="L36">        return ResponseEntity.ok(created);</span>
+    }
+
+    @GetMapping(&quot;/{accountNumber}&quot;)
+    public ResponseEntity&lt;Account&gt; getAccount(@PathVariable String accountNumber) {
+<span class="fc" id="L41">        log.info(&quot;Received request to get account: accountNumber={}&quot;, accountNumber);</span>
+        
+<span class="fc" id="L43">        Optional&lt;Account&gt; account = accountService.getAccount(accountNumber);</span>
+        
+<span class="fc bfc" id="L45" title="All 2 branches covered.">        if (account.isPresent()) {</span>
+<span class="fc" id="L46">            log.info(&quot;Account retrieved successfully: accountNumber={}, balance={}, currency={}&quot;, </span>
+<span class="fc" id="L47">                    account.get().getAccountNumber(), account.get().getBalance(), account.get().getCurrency());</span>
+<span class="fc" id="L48">            return ResponseEntity.ok(account.get());</span>
+        } else {
+<span class="fc" id="L50">            log.info(&quot;Account not found: accountNumber={}&quot;, accountNumber);</span>
+<span class="fc" id="L51">            return ResponseEntity.notFound().build();</span>
+        }
+    }
+
+    @GetMapping
+    public ResponseEntity&lt;List&lt;Account&gt;&gt; getAllAccounts() {
+<span class="nc" id="L57">        log.info(&quot;Received request to get all accounts&quot;);</span>
+        
+<span class="nc" id="L59">        List&lt;Account&gt; accounts = accountService.getAllAccounts();</span>
+        
+<span class="nc" id="L61">        log.info(&quot;Retrieved {} accounts successfully&quot;, accounts.size());</span>
+<span class="nc" id="L62">        return ResponseEntity.ok(accounts);</span>
+    }
+
+    @PutMapping(&quot;/{accountNumber}/balance&quot;)
+    public ResponseEntity&lt;Account&gt; updateBalance(
+            @PathVariable String accountNumber,
+            @RequestParam BigDecimal amount) {
+<span class="fc" id="L69">        log.info(&quot;Received request to update account balance: accountNumber={}, amount={}&quot;, </span>
+                accountNumber, amount);
+        
+<span class="fc" id="L72">        Account updated = accountService.updateBalance(accountNumber, amount);</span>
+        
+<span class="fc" id="L74">        log.info(&quot;Account balance updated successfully: accountNumber={}, newBalance={}&quot;, </span>
+<span class="fc" id="L75">                updated.getAccountNumber(), updated.getBalance());</span>
+<span class="fc" id="L76">        return ResponseEntity.ok(updated);</span>
+    }
+
+    @DeleteMapping(&quot;/{accountNumber}&quot;)
+    public ResponseEntity&lt;Void&gt; deleteAccount(@PathVariable String accountNumber) {
+<span class="nc" id="L81">        log.info(&quot;Received request to delete account: accountNumber={}&quot;, accountNumber);</span>
+        
+<span class="nc" id="L83">        accountService.deleteAccount(accountNumber);</span>
+        
+<span class="nc" id="L85">        log.info(&quot;Account deleted successfully: accountNumber={}&quot;, accountNumber);</span>
+<span class="nc" id="L86">        return ResponseEntity.ok().build();</span>
+    }
+} 
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.7.9.201702052155</span></div></body></html>

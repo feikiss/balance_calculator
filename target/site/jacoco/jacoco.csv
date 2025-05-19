@@ -1,0 +1,17 @@
+GROUP,PACKAGE,CLASS,INSTRUCTION_MISSED,INSTRUCTION_COVERED,BRANCH_MISSED,BRANCH_COVERED,LINE_MISSED,LINE_COVERED,COMPLEXITY_MISSED,COMPLEXITY_COVERED,METHOD_MISSED,METHOD_COVERED
+balance-calculator,com.fly.hsbchomework.controller,TransactionController,16,235,0,2,4,35,1,9,1,8
+balance-calculator,com.fly.hsbchomework.controller,AccountController,31,114,0,2,8,20,2,6,2,5
+balance-calculator,com.fly.hsbchomework,HelloWorld,7,0,0,0,3,0,2,0,2,0
+balance-calculator,com.fly.hsbchomework,BalanceCalculatorApplication,5,3,0,0,2,1,1,1,1,1
+balance-calculator,com.fly.hsbchomework.config,CacheConfig,0,43,0,0,0,18,0,2,0,2
+balance-calculator,com.fly.hsbchomework.config,KubernetesSecretConfig,79,47,20,2,0,3,14,6,3,6
+balance-calculator,com.fly.hsbchomework.config,DatabaseProperties,127,85,34,4,0,5,22,10,3,10
+balance-calculator,com.fly.hsbchomework.util,MockDataGenerator,109,7,9,1,15,3,7,2,2,2
+balance-calculator,com.fly.hsbchomework.model,Transaction,381,391,96,30,1,27,66,35,5,33
+balance-calculator,com.fly.hsbchomework.model,Account,329,47,62,0,1,14,40,13,9,13
+balance-calculator,com.fly.hsbchomework.model,Currency,8,82,0,0,1,10,2,3,2,3
+balance-calculator,com.fly.hsbchomework.model,TransactionFailureHistory,173,104,41,5,1,9,28,12,5,12
+balance-calculator,com.fly.hsbchomework.model,TransactionStatus,5,53,0,0,0,5,1,3,1,3
+balance-calculator,com.fly.hsbchomework.exception,GlobalExceptionHandler,9,3,0,0,2,1,2,1,2,1
+balance-calculator,com.fly.hsbchomework.service.impl,TransactionServiceImpl,116,535,5,11,19,103,15,14,10,11
+balance-calculator,com.fly.hsbchomework.service.impl,AccountServiceImpl,104,107,4,2,20,23,7,5,4,5

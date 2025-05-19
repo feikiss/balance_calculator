@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: balance-config
+  labels:
+    app: balance-calculator
+data:
+  datasource-url: jdbc:mysql://<your-db-host>:3306/balance_calculator?useSSL=false&serverTimezone=UTC
+  redis-host: <your-redis-host>
+  redis-port: "6379" 
