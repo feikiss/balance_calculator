@@ -6,12 +6,12 @@ metadata:
     app: balance-calculator
 data:
   # Database Configuration
-  DB_HOST: "mysql-service"
+  DB_HOST: "rm-bp14ba38g3okow3ng.mysql.rds.aliyuncs.com"
   DB_PORT: "3306"
   DB_NAME: "balance_calculator"
   
   # Redis Configuration
-  REDIS_HOST: "redis-service"
+  REDIS_HOST: "r-bp1cgrt3osqux4ejsg.redis.rds.aliyuncs.com"
   REDIS_PORT: "6379"
   REDIS_DATABASE: "0"
   REDIS_TIMEOUT: "10000"

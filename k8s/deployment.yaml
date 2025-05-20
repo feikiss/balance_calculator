@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
       - name: balance-calculator
-        image: balance-calculator:latest
+        image: crpi-5zsy79qqob1c1hsk.cn-hangzhou.personal.cr.aliyuncs.com/flynn_11122/balance-calculator:latest
         imagePullPolicy: Always
         ports:
         - containerPort: 8080
@@ -47,33 +47,24 @@ spec:
         - name: logs-volume
           mountPath: /app/logs
         env:
-        - name: K8S_DATASOURCE_USERNAME
+        - name: DATASOURCE_USERNAME
           valueFrom:
             secretKeyRef:
               name: balance-calculator-secret
-              key: datasource-username
-        - name: K8S_DATASOURCE_PASSWORD
+              key: DATASOURCE_USERNAME
+        - name: DATASOURCE_PASSWORD
           valueFrom:
             secretKeyRef:
               name: balance-calculator-secret
-              key: datasource-password
-        - name: DB_HOST
-          value: "mysql-service"
-        - name: DB_PORT
-          value: "3306"
-        - name: DB_NAME
-          value: "balance_calculator"
-        - name: REDIS_HOST
-          value: "redis-service"
-        - name: REDIS_PORT
-          value: "6379"
+              key: DATASOURCE_PASSWORD
         - name: REDIS_PASSWORD
           valueFrom:
             secretKeyRef:
               name: balance-calculator-secret
-              key: redis-password
-        - name: SPRING_PROFILES_ACTIVE
-          value: "prod"
+              key: REDIS_PASSWORD
+        envFrom:
+        - configMapRef:
+            name: balance-calculator-config
       volumes:
       - name: config-volume
         configMap:

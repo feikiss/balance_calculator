@@ -1,5 +1,5 @@
 # 运行阶段
-FROM openjdk:17-slim
+FROM openjdk:17
 WORKDIR /app
 
 # 创建非 root 用户
