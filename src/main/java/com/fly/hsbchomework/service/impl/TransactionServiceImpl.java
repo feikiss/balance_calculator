@@ -10,19 +10,21 @@ import com.fly.hsbchomework.repository.TransactionFailureHistoryRepository;
 import com.fly.hsbchomework.repository.TransactionRepository;
 import com.fly.hsbchomework.service.TransactionService;
 import com.fly.hsbchomework.service.AccountService;
+import com.fly.hsbchomework.util.RedisDistributedLock;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.retry.annotation.Backoff;
+import org.springframework.retry.annotation.Retryable;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.locks.ReentrantLock;
 import javax.persistence.EntityNotFoundException;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
@@ -36,8 +38,12 @@ public class TransactionServiceImpl implements TransactionService {
     private final AccountRepository accountRepository;
     private final TransactionFailureHistoryRepository failureHistoryRepository;
     private final AccountService accountService;
+    private final RedisDistributedLock distributedLock;
 
-    private final ReentrantLock accountLock = new ReentrantLock();
+    private static final String TRANSACTION_LOCK_PREFIX = "transaction:lock:";
+    private static final String ACCOUNT_LOCK_PREFIX = "account:lock:";
+    private static final long LOCK_TIMEOUT = 30;
+    private static final TimeUnit LOCK_TIME_UNIT = TimeUnit.SECONDS;
 
     @Override
     @Transactional
@@ -47,92 +53,156 @@ public class TransactionServiceImpl implements TransactionService {
         log.info("Creating new transaction: sourceAccount={}, targetAccount={}, amount={}, currency={}",
                 sourceAccountNumber, targetAccountNumber, amount, currency);
 
-        Account sourceAccount = accountRepository.findByAccountNumber(sourceAccountNumber)
-                .orElseThrow(() -> {
-                    log.error("Source account not found: accountNumber={}", sourceAccountNumber);
-                    return new EntityNotFoundException("Source account not found");
-                });
+        final String requestId = UUID.randomUUID().toString();
+        final String sourceLockKey = ACCOUNT_LOCK_PREFIX + sourceAccountNumber;
+        final String targetLockKey = ACCOUNT_LOCK_PREFIX + targetAccountNumber;
 
-        Account targetAccount = accountRepository.findByAccountNumber(targetAccountNumber)
-                .orElseThrow(() -> {
-                    log.error("Target account not found: accountNumber={}", targetAccountNumber);
-                    return new EntityNotFoundException("Target account not found");
-                });
+        try {
+            // Try to acquire locks for both accounts
+            if (!distributedLock.tryLock(sourceLockKey, requestId, LOCK_TIMEOUT, LOCK_TIME_UNIT)) {
+                throw new RuntimeException("Failed to acquire lock for source account");
+            }
+            if (!distributedLock.tryLock(targetLockKey, requestId, LOCK_TIMEOUT, LOCK_TIME_UNIT)) {
+                distributedLock.releaseLock(sourceLockKey, requestId);
+                throw new RuntimeException("Failed to acquire lock for target account");
+            }
 
-        Transaction transaction = new Transaction();
-        transaction.setTransactionId(UUID.randomUUID().toString());
-        transaction.setSourceAccountNumber(sourceAccountNumber);
-        transaction.setTargetAccountNumber(targetAccountNumber);
-        transaction.setAmount(amount);
-        transaction.setCurrency(currency);
-        transaction.setStatus(TransactionStatus.PENDING);
+            Account sourceAccount = accountRepository.findByAccountNumber(sourceAccountNumber)
+                    .orElseThrow(() -> {
+                        log.error("Source account not found: accountNumber={}", sourceAccountNumber);
+                        return new EntityNotFoundException("Source account not found");
+                    });
 
-        Transaction saved = transactionRepository.save(transaction);
-        log.info("Transaction created successfully: transactionId={}", saved.getTransactionId());
-        return saved;
+            Account targetAccount = accountRepository.findByAccountNumber(targetAccountNumber)
+                    .orElseThrow(() -> {
+                        log.error("Target account not found: accountNumber={}", targetAccountNumber);
+                        return new EntityNotFoundException("Target account not found");
+                    });
+
+            Transaction transaction = new Transaction();
+            transaction.setTransactionId(UUID.randomUUID().toString());
+            transaction.setSourceAccountNumber(sourceAccountNumber);
+            transaction.setTargetAccountNumber(targetAccountNumber);
+            transaction.setAmount(amount);
+            transaction.setCurrency(currency);
+            transaction.setStatus(TransactionStatus.PENDING);
+
+            Transaction saved = transactionRepository.save(transaction);
+            log.info("Transaction created successfully: transactionId={}", saved.getTransactionId());
+            return saved;
+        } finally {
+            distributedLock.releaseLock(sourceLockKey, requestId);
+            distributedLock.releaseLock(targetLockKey, requestId);
+        }
     }
 
     @Override
     @Transactional
+    @Retryable(
+        value = {RuntimeException.class},
+        maxAttempts = 3,
+        backoff = @Backoff(delay = 100, multiplier = 2)
+    )
     @CacheEvict(value = {"transactions"}, key = "#transactionId")
     public Transaction processTransaction(String transactionId) {
         log.info("Processing transaction: transactionId={}", transactionId);
 
-        Transaction transaction = transactionRepository.findByTransactionId(transactionId)
-                .orElseThrow(() -> {
-                    log.error("Transaction not found: transactionId={}", transactionId);
-                    return new EntityNotFoundException("Transaction not found");
-                });
-
-        if (transaction.getStatus() != TransactionStatus.PENDING) {
-            log.warn("Transaction is not in PENDING status: transactionId={}, status={}",
-                    transactionId, transaction.getStatus());
-            throw new IllegalStateException("Transaction is not in PENDING status");
-        }
+        final String requestId = UUID.randomUUID().toString();
+        final String transactionLockKey = TRANSACTION_LOCK_PREFIX + transactionId;
 
         try {
-            accountLock.lock();
-
-            Account sourceAccount = accountRepository.findByAccountNumberWithLock(transaction.getSourceAccountNumber())
-                    .orElseThrow(() -> {
-                        log.error("Source account not found: accountNumber={}", transaction.getSourceAccountNumber());
-                        return new EntityNotFoundException("Source account not found");
-                    });
-            Account targetAccount = accountRepository.findByAccountNumberWithLock(transaction.getTargetAccountNumber())
-                    .orElseThrow(() -> {
-                        log.error("Target account not found: accountNumber={}", transaction.getTargetAccountNumber());
-                        return new EntityNotFoundException("Target account not found");
-                    });
-
-
-            if (sourceAccount.getBalance().compareTo(transaction.getAmount()) < 0) {
-                throw new RuntimeException("Insufficient funds");
+            // 获取交易锁
+            if (!distributedLock.tryLock(transactionLockKey, requestId, LOCK_TIMEOUT, LOCK_TIME_UNIT)) {
+                throw new RuntimeException("Failed to acquire transaction lock");
             }
 
-            // update
-            sourceAccount.setBalance(sourceAccount.getBalance().subtract(transaction.getAmount()));
-            targetAccount.setBalance(targetAccount.getBalance().add(transaction.getAmount()));
+            // 获取并验证交易
+            final Transaction transaction = transactionRepository.findByTransactionId(transactionId)
+                    .orElseThrow(() -> {
+                        log.error("Transaction not found: transactionId={}", transactionId);
+                        return new EntityNotFoundException("Transaction not found");
+                    });
 
+            // 验证交易状态
+            if (transaction.getStatus() != TransactionStatus.PENDING) {
+                log.warn("Transaction is not in PENDING status: transactionId={}, status={}",
+                        transactionId, transaction.getStatus());
+                throw new IllegalStateException("Transaction is not in PENDING status");
+            }
 
-            accountRepository.save(sourceAccount);
-            accountRepository.save(targetAccount);
+            // 按照账户编号排序获取锁，避免死锁
+            final String sourceAccountNumber = transaction.getSourceAccountNumber();
+            final String targetAccountNumber = transaction.getTargetAccountNumber();
+            final String firstLockKey = ACCOUNT_LOCK_PREFIX + 
+                    (sourceAccountNumber.compareTo(targetAccountNumber) < 0 ? sourceAccountNumber : targetAccountNumber);
+            final String secondLockKey = ACCOUNT_LOCK_PREFIX + 
+                    (sourceAccountNumber.compareTo(targetAccountNumber) < 0 ? targetAccountNumber : sourceAccountNumber);
 
-            // update status
-            transaction.setStatus(TransactionStatus.COMPLETED);
-            Transaction processed = transactionRepository.save(transaction);
+            try {
+                // 获取第一个账户锁
+                if (!distributedLock.tryLock(firstLockKey, requestId, LOCK_TIMEOUT, LOCK_TIME_UNIT)) {
+                    throw new RuntimeException("Failed to acquire first account lock");
+                }
 
-            log.info("Transaction processed successfully: transactionId={}, status={}",
-                    processed.getTransactionId(), processed.getStatus());
-            return processed;
+                // 获取第二个账户锁
+                if (!distributedLock.tryLock(secondLockKey, requestId, LOCK_TIMEOUT, LOCK_TIME_UNIT)) {
+                    distributedLock.releaseLock(firstLockKey, requestId);
+                    throw new RuntimeException("Failed to acquire second account lock");
+                }
+
+                // 获取账户信息
+                Account sourceAccount = accountRepository.findByAccountNumberWithLock(sourceAccountNumber)
+                        .orElseThrow(() -> {
+                            log.error("Source account not found: accountNumber={}", sourceAccountNumber);
+                            return new EntityNotFoundException("Source account not found");
+                        });
+                Account targetAccount = accountRepository.findByAccountNumberWithLock(targetAccountNumber)
+                        .orElseThrow(() -> {
+                            log.error("Target account not found: accountNumber={}", targetAccountNumber);
+                            return new EntityNotFoundException("Target account not found");
+                        });
+
+                // 验证账户余额
+                if (sourceAccount.getBalance().compareTo(transaction.getAmount()) < 0) {
+                    throw new RuntimeException("Insufficient funds in source account");
+                }
+
+                // 执行转账
+                sourceAccount.setBalance(sourceAccount.getBalance().subtract(transaction.getAmount()));
+                targetAccount.setBalance(targetAccount.getBalance().add(transaction.getAmount()));
+
+                // 保存账户更新
+                accountRepository.save(sourceAccount);
+                accountRepository.save(targetAccount);
+
+                // 更新交易状态
+                transaction.setStatus(TransactionStatus.COMPLETED);
+                transaction.setProcessedTime(LocalDateTime.now());
+                Transaction processed = transactionRepository.save(transaction);
+
+                log.info("Transaction processed successfully: transactionId={}, status={}, amount={}, currency={}",
+                        processed.getTransactionId(), processed.getStatus(), processed.getAmount(), processed.getCurrency());
+                return processed;
+
+            } finally {
+                // 释放账户锁
+                distributedLock.releaseLock(firstLockKey, requestId);
+                distributedLock.releaseLock(secondLockKey, requestId);
+            }
+
         } catch (Exception e) {
             log.error("Error processing transaction: transactionId={}, error={}", transactionId, e.getMessage());
-            transaction.setStatus(TransactionStatus.FAILED);
-            transaction.setErrorMessage(e.getMessage());
-            Transaction failed = transactionRepository.save(transaction);
+            Transaction failed = transactionRepository.findByTransactionId(transactionId)
+                    .orElseThrow(() -> new EntityNotFoundException("Transaction not found"));
+            failed.setStatus(TransactionStatus.FAILED);
+            failed.setErrorMessage(e.getMessage());
+            failed.setLastRetryTime(LocalDateTime.now());
+            failed = transactionRepository.save(failed);
             recordFailure(failed, e.getMessage());
             throw new RuntimeException("Failed to process transaction", e);
         } finally {
-            accountLock.unlock();
+            // 释放交易锁
+            distributedLock.releaseLock(transactionLockKey, requestId);
         }
     }
 
@@ -159,7 +229,6 @@ public class TransactionServiceImpl implements TransactionService {
             throw new RuntimeException("Maximum retry attempts reached");
         }
         try {
-            accountLock.lock();
             // 验证账户是否存在
             Account sourceAccount = accountRepository.findByAccountNumber(transaction.getSourceAccountNumber())
                     .orElseThrow(() -> new RuntimeException("Source account not found"));
@@ -212,7 +281,7 @@ public class TransactionServiceImpl implements TransactionService {
             recordFailure(transaction, e.getMessage());
             throw e;
         } finally {
-            accountLock.unlock();
+           
         }
     }
 

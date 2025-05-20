@@ -61,6 +61,9 @@ public class Transaction implements Serializable {
     @Column
     private LocalDateTime lastRetryTime;
 
+    @Column
+    private LocalDateTime processedTime;
+
     @OneToMany(mappedBy = "transaction", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
     @ToString.Exclude
     private List<TransactionFailureHistory> failureHistories = new ArrayList<>();
