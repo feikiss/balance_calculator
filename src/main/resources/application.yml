@@ -1,8 +1,8 @@
 spring:
   datasource:
     url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME:balance_calculator}?allowPublicKeyRetrieval=true&useSSL=false&serverTimezone=UTC
-    username: ${DB_USERNAME:root}
-    password: ${DB_PASSWORD:root}
+    username: ${K8S_DATASOURCE_USERNAME:root}
+    password: ${K8S_DATASOURCE_PASSWORD:root}
     driver-class-name: com.mysql.cj.jdbc.Driver
   jpa:
     hibernate:
@@ -17,13 +17,19 @@ spring:
     port: ${REDIS_PORT:6379}
     password: ${REDIS_PASSWORD:}
     database: 0
-    timeout: 10000
+    timeout: ${REDIS_TIMEOUT:10000}
     lettuce:
       pool:
-        max-active: 8
-        max-wait: -1
-        max-idle: 8
-        min-idle: 0
+        max-active: ${REDIS_MAX_IDLE:8}
+        max-wait: ${REDIS_MAX_WAIT:-1}
+        max-idle: ${REDIS_MAX_IDLE:8}
+        min-idle: ${REDIS_MIN_IDLE:0}
+  cache:
+    type: redis
+    redis:
+      time-to-live: 1800
+      cache-null-values: false
+      key-prefix: "balance-calculator:"
 
 # Kubernetes Secret Configuration
 kubernetes:
@@ -33,9 +39,46 @@ kubernetes:
       password: ${K8S_DATASOURCE_PASSWORD}
 
 server:
-  port: 8080
+  port: ${SERVER_PORT:8080}
+  tomcat:
+    max-threads: 200
+    min-spare-threads: 10
+    max-connections: 10000
+    accept-count: 100
 
 logging:
   level:
-    com.fly.hsbchomework: INFO
-    org.springframework: INFO
+    root: ${LOGGING_LEVEL_ROOT:INFO}
+    com.fly.hsbchomework: ${LOGGING_LEVEL_APP:INFO}
+    org.springframework: ${LOGGING_LEVEL_APP:INFO}
+    org.hibernate: ${LOGGING_LEVEL_APP:INFO}
+  file:
+    name: /app/logs/application.log
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics
+  endpoint:
+    health:
+      show-details: always
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+
+app:
+  transaction:
+    retry:
+      max-attempts: 3
+      initial-interval: 1000
+      multiplier: 2.0
+      max-interval: 10000
+  security:
+    jwt:
+      secret: ${JWT_SECRET:default-jwt-secret}
+      expiration: 86400000

@@ -173,6 +173,38 @@ docker build -t hsbchomework:latest .
 kubectl apply -f k8s/
 ```
 
+
+
+## Testing
+
+### Running Unit Tests
+```bash
+mvn clean test
+```
+#### Unit Test Results
+
+![](/screenshots/ut-coverage.png)
+The core business test coverage is around 80%.  Unit test and integration test is added under src/test packaegs
+
+### JMeter Performance Testing
+JMeter script location:
+```shell
+/scripts/jmeter/balance-calculator-test.jmx
+```
+Execute script:
+```shell
+sh scripts/jmeter/generate-performance-report.sh
+```
+#### Performance Test Results
+![](/screenshots/jmeter-result.png)
+![](/screenshots/jmeter-statics.png)
+
+### Resilience Test
+Resilience testing models scenarios such as database disconnection, cache unavailability, high concurrency, and simulated service outages to verify code robustness.
+The test code locates at src/test/java/xxx/resilience
+Test results:
+![](/screenshots/resiliencetest.png)
+
 ## API Endpoints
 
 ### Account Management Endpoints
@@ -267,34 +299,6 @@ All endpoints return a unified response format:
 | 404 | Not Found |
 | 409 | Conflict |
 | 500 | Internal Server Error |
-
-## Testing
-
-### Running Unit Tests
-```bash
-mvn clean test
-```
-#### Unit Test Results
-[](/screenshots/ut-coverage.png)
-The core business test coverage is around 80%.
-
-### JMeter Performance Testing
-JMeter script location:
-```shell
-/scripts/jmeter/balance-calculator-test.jmx
-```
-Execute script:
-```shell
-sh scripts/jmeter/generate-performance-report.sh
-```
-#### Performance Test Results
-[](/screenshots/jmeter-result.png)
-[](/screenshots/jmeter-statics.png)
-
-### Resilience Test
-Resilience testing models scenarios such as database disconnection, cache unavailability, high concurrency, and simulated service outages to verify code robustness.
-Test results:
-[](/screenshots/resiliencetest.png)
 
 ## Monitoring
 

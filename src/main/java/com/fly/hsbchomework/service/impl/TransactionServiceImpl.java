@@ -192,18 +192,22 @@ public class TransactionServiceImpl implements TransactionService {
 
         } catch (Exception e) {
             log.error("Error processing transaction: transactionId={}, error={}", transactionId, e.getMessage());
-            Transaction failed = transactionRepository.findByTransactionId(transactionId)
-                    .orElseThrow(() -> new EntityNotFoundException("Transaction not found"));
-            failed.setStatus(TransactionStatus.FAILED);
-            failed.setErrorMessage(e.getMessage());
-            failed.setLastRetryTime(LocalDateTime.now());
-            failed = transactionRepository.save(failed);
-            recordFailure(failed, e.getMessage());
+            recordFail(transactionId, e);
             throw new RuntimeException("Failed to process transaction", e);
         } finally {
             // 释放交易锁
             distributedLock.releaseLock(transactionLockKey, requestId);
         }
+    }
+
+    private void recordFail(String transactionId, Exception e) {
+        Transaction failed = transactionRepository.findByTransactionId(transactionId)
+                .orElseThrow(() -> new EntityNotFoundException("Transaction not found"));
+        failed.setStatus(TransactionStatus.FAILED);
+        failed.setErrorMessage(e.getMessage());
+        failed.setLastRetryTime(LocalDateTime.now());
+        failed = transactionRepository.save(failed);
+        recordFailure(failed, e.getMessage());
     }
 
     @Override
