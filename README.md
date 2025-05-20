@@ -1,8 +1,8 @@
-# HSBC Transaction Service
+# Transaction System
 
-实时余额计算系统，提供安全、可靠的交易处理服务。
+Real-time balance calculation system providing secure and reliable transaction processing services.
 
-## 系统架构
+## System Architecture
 
 ```mermaid
 graph TB
@@ -42,7 +42,7 @@ graph TB
         LOG[Logging System]
     end
 
-    %% 连接关系
+    %% Connection Relationships
     CLIENT --> LB
     LB --> API
     API --> SVC
@@ -56,7 +56,7 @@ graph TB
     SVC --> MONITOR
     SVC --> LOG
 
-    %% 样式
+    %% Styles
     classDef k8s fill:#326ce5,stroke:#326ce5,color:white
     classDef redis fill:#d82c20,stroke:#d82c20,color:white
     classDef mysql fill:#00758f,stroke:#00758f,color:white
@@ -69,136 +69,133 @@ graph TB
     class CLIENT,MONITOR,LOG external
 ```
 
-## 架构说明
+## Architecture Explanation
 
-### 1. Kubernetes 集群层
-- Ingress Controller：处理外部流量路由
-- 服务部署在多个 Pod 中，确保高可用性
-- 使用 ConfigMap 和 Secret 管理配置
+### 1. Kubernetes Cluster Layer
+- Services are deployed across multiple Pods to ensure high availability.
+- Uses ConfigMaps and Secrets for configuration management.
 
-### 2. 应用服务层
-- API Gateway：处理请求路由和认证
-- Transaction Service：核心业务逻辑
-- Cache Service：缓存管理
+### 2. Application Service Layer
+- API Gateway: Manages request routing and authentication (not integrated in this example).
+- Transaction Service: Core business logic.
+- Cache Service: Cache management.
 
-### 3. 中间件层（Redis）
-- 主从架构
-- 用于：
-  - 分布式锁
-  - 缓存
-  - 会话管理
+### 3. Middleware Layer (Redis)
+- Master-Slave architecture.
+- Used for:
+  - Distributed locks
+  - Caching
+  - Session management
 
-### 4. 数据库层（MySQL）
-- 主从架构
-- 用于：
-  - 交易数据持久化
-  - 账户信息存储
-  - 交易历史记录
+### 4. Database Layer (MySQL)
+- Master-Slave architecture.
+- Used for:
+  - Persisting transaction data
+  - Storing account information
+  - Keeping transaction history
 
-### 5. 外部系统
-- 客户端应用
-- 监控系统
-- 日志系统
+### 5. External Systems (Dependencies not integrated)
+- Client applications
+- Monitoring system
+- Logging system
 
-## 关键特性
+## Key Features
 
-### 1. 高可用性
-- 服务多副本部署
-- 数据库主从复制
-- Redis 集群
+### 1. High Availability
+- Multi-replica deployment of services.
+- Database master-slave replication (external dependency).
+- Redis cluster (external dependency).
 
-### 2. 可扩展性
-- 水平扩展服务实例
-- 读写分离
-- 缓存分层
+### 2. Scalability
+- Horizontal scaling of service instances.
+- Read-write separation.
+- Tiered caching.
 
-### 3. 安全性
-- Kubernetes Secret 管理敏感信息
-- 服务间 TLS 加密
-- 访问控制
+### 3. Security
+- Sensitive information managed via Kubernetes Secrets.
 
-### 4. 监控和日志
-- 集中式日志收集
-- 性能监控
-- 告警系统
+### 4. Monitoring and Logging (Dependencies not integrated)
+- Centralized log collection.
+- Performance monitoring.
+- Alerting system.
 
-### 5. 数据一致性
-- 分布式锁
-- 事务管理
-- 缓存同步
+### 5. Data Consistency
+- Distributed locks.
+- Transaction management.
+- Cache synchronization.
 
-## 技术栈
+## Technology Stack
 
-- **后端框架**: Spring Boot 2.7.x
-- **数据库**: MySQL 8.0
-- **缓存**: Redis
-- **容器化**: Docker
-- **编排**: Kubernetes
-- **构建工具**: Maven
-- **测试框架**: JUnit 5, TestContainers
+- **Backend Framework**: Spring Boot 2.7.x
+- **Database**: MySQL 8.0
+- **Caching**: Redis
+- **Containerization**: Docker
+- **Orchestration**: Kubernetes
+- **Build Tool**: Maven
+- **Testing Framework**: JUnit 5, TestContainers
 
-## 快速开始
+## Quick Start
 
-### 环境要求
+### Environment Requirements
 - JDK 1.8+
 - Maven 3.6+
 - Docker
-- Kubernetes 集群
-- Redis 集群
-- MySQL 集群
+- Kubernetes
+- Redis
+- MySQL cluster
 
-### 本地开发
-1. 克隆项目
+### Local Development
+1. Clone the project
 ```bash
 git clone https://github.com/feikiss/balance_calculator.git
 ```
 
-2. 配置开发环境
+2. Configure development environment
 ```bash
 cp src/main/resources/application.yml.example src/main/resources/application.yml
-# 编辑 application.yml 配置数据库和Redis连接信息
+# Edit application.yml to configure database and Redis connection details
 ```
 
-3. 运行项目
+3. Run the project
 ```bash
 mvn spring-boot:run
 ```
 
-### 部署到 Kubernetes
-1. 构建 Docker 镜像
+### Deployment to Kubernetes
+1. Build Docker image
 ```bash
 mvn clean package
 docker build -t hsbchomework:latest .
 ```
 
-2. 部署到 Kubernetes
+2. Deploy to Kubernetes
 ```bash
 kubectl apply -f k8s/
 ```
 
-## API 接口
+## API Endpoints
 
-### 账户管理接口
+### Account Management Endpoints
 
-#### 创建账户
+#### Create Account
 ```http
 POST /api/accounts
 Content-Type: application/json
 
 {
     "accountNumber": "ACC-001",
-    "accountName": "测试账户",
+    "accountName": "Test Account",
     "initialBalance": 1000.00,
     "currency": "CNY"
 }
 ```
 
-#### 查询账户
+#### Query Account
 ```http
 GET /api/accounts/{accountNumber}
 ```
 
-#### 更新账户余额
+#### Update Account Balance
 ```http
 PUT /api/accounts/{accountNumber}/balance
 Content-Type: application/json
@@ -208,9 +205,9 @@ Content-Type: application/json
 }
 ```
 
-### 交易管理接口
+### Transaction Management Endpoints
 
-#### 创建交易
+#### Create Transaction
 ```http
 POST /api/transactions
 Content-Type: application/json
@@ -221,94 +218,89 @@ Content-Type: application/json
     "targetAccountNumber": "ACC-002",
     "amount": 100.00,
     "currency": "CNY",
-    "description": "转账"
+    "description": "Transfer"
 }
 ```
 
-#### 处理交易
+#### Process Transaction
 ```http
 POST /api/transactions/{transactionId}/process
 ```
 
-#### 查询交易
+#### Query Transaction
 ```http
 GET /api/transactions/{transactionId}
 ```
 
-#### 查询账户交易历史
+#### Query Account Transaction History
 ```http
 GET /api/transactions/account/{accountNumber}
 ```
 
-#### 分页查询交易
+#### Paginated Query Transactions
 ```http
 GET /api/transactions?page=0&size=10
 ```
 
-### 响应格式
+### Response Format
 
-所有接口返回统一的响应格式：
+All endpoints return a unified response format:
 
 ```json
 {
     "code": 200,
     "message": "success",
     "data": {
-        // 具体业务数据
+        
     }
 }
 ```
 
-### 错误码说明
+### Error Code Explanation
 
-| 错误码 | 说明 |
-|--------|------|
-| 200 | 成功 |
-| 400 | 请求参数错误 |
-| 401 | 未授权 |
-| 403 | 禁止访问 |
-| 404 | 资源不存在 |
-| 409 | 资源冲突 |
-| 500 | 服务器内部错误 |
+| Error Code | Description |
+|------------|-------------|
+| 200 | Success |
+| 400 | Bad Request |
+| 401 | Unauthorized |
+| 403 | Forbidden |
+| 404 | Not Found |
+| 409 | Conflict |
+| 500 | Internal Server Error |
 
-## 测试
+## Testing
 
-### 运行单元测试
+### Running Unit Tests
 ```bash
 mvn clean test
 ```
-#### 单元测试结果
-![](/screenshots/ut-coverage.png)
-其中，核心业务测试覆盖率80%左右
+#### Unit Test Results
+[](/screenshots/ut-coverage.png)
+The core business test coverage is around 80%.
 
-### jmeter性能测试
-jmeter脚本地址：
+### JMeter Performance Testing
+JMeter script location:
 ```shell
 /scripts/jmeter/balance-calculator-test.jmx
 ```
-执行脚本：
+Execute script:
 ```shell
 sh scripts/jmeter/generate-performance-report.sh
 ```
-####性能测试结果
-![](/screenshots/jmeter-result.png)
-![](/screenshots/jmeter-statics.png)
+#### Performance Test Results
+[](/screenshots/jmeter-result.png)
+[](/screenshots/jmeter-statics.png)
 
-### Resilience test
-可靠性测试模型了数据库断连，缓存不可用，高并发，模拟服务不可用等场景，验证了代码的健壮性。
-测试结果：
-![](/screenshots/resiliencetest.png)
+### Resilience Test
+Resilience testing models scenarios such as database disconnection, cache unavailability, high concurrency, and simulated service outages to verify code robustness.
+Test results:
+[](/screenshots/resiliencetest.png)
 
-## 监控
+## Monitoring
 
-系统集成了以下监控指标：
-- 服务健康状态
-- 交易处理延迟
-- 缓存命中率
-- 数据库性能
-- 系统资源使用情况
-
-
-## 许可证
-
-本项目采用 MIT 许可证 
+The system can integrate the following monitoring metrics (not integrated):
+- Service health status
+- Transaction processing delay
+- Cache hit rate
+- Database performance
+- System resource usage
